@@ -18,8 +18,8 @@ export default function Home() {
     setItinerary(null);
 
     try {
-      // The FastAPI server should be running on localhost:8000
-      const response = await fetch('http://localhost:8000/api/plan', {
+      // The request is proxied through the Next.js API route to handle Docker networking
+      const response = await fetch('/api/plan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

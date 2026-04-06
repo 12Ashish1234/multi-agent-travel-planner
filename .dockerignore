@@ -1,0 +1,6 @@
+__pycache__/
+.git/
+.env
+.DS_Store
+frontend/
+node_modules/
