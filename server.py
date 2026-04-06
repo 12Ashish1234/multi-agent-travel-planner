@@ -54,6 +54,24 @@ async def create_plan(request: PlanRequest):
                     
         if not final_output:
             final_output = "No itinerary generated. Please ensure your prompt is clear."
+        else:
+            import re
+            # Remove <think>...</think> blocks if present
+            final_output = re.sub(r'<think>.*?</think>', '', final_output, flags=re.DOTALL)
+            
+            # Fallback for models that output "Thinking Process: ... Let's write it."
+            # We can try to strip it if "Thinking Process:" is at the start and followed by a clear break.
+            # But the prompt should ideally handle this now. Just in case, if we find "Thinking Process:",
+            # we might split by the first double newline or markdown heading.
+            # A simple rule: If it starts with "Thinking Process:", find the first actual markdown heading "#" or emoji flag.
+            if "Thinking Process:" in final_output:
+                # Find the first major heading or emoji that usually starts the itinerary
+                match = re.search(r'(?:\n\n|\n)(#|🇯🇵|✈️|🏨|🗓️|Phase|\*\*Title:\*\*)', final_output)
+                if match:
+                    final_output = final_output[match.start():]
+            
+            final_output = final_output.strip()
+            
     except Exception as e:
         print(f"Error executing runner: {e}")
         final_output = f"An error occurred while generating the plan: {str(e)}"
