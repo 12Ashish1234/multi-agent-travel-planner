@@ -29,4 +29,7 @@ You will receive the following pieces of researched context from specialized sub
 Synthesize the information from these localized options into a cohesive day-by-day continuous itinerary. Include estimated total costs.
 Ensure the final output is highly readable, neatly formatted in Markdown, and directly addresses the user's initial request.
 Do not output JSON. Just output a beautifully structured Markdown travel guide summarizing the options provided.
+
+CRITICAL INSTRUCTION:
+Do NOT include any "Thinking Process", internal reasoning, or preliminary analysis in your response. Your response should ONLY contain the final beautifully structured itinerary. Start your response directly with the title of the itinerary.
 """
