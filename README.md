@@ -2,6 +2,8 @@
 
 This is a multi-agent trip planning application built using the [Google Agent Development Kit (ADK)](https://github.com/google/adk). It uses a parallel-to-sequential agent architecture to gather flight options, hotel accommodations, and sightseeing recommendations concurrently, then synthesizes them into a cohesive Markdown itinerary.
 
+The application is built with a **FastAPI** backend that runs the ADK agent pipeline, and a modern **Next.js** frontend for an interactive user interface. The entire stack is fully containerized using **Docker Compose**.
+
 ## Design Architecture
 
 The application follows a modular and hierarchical design:
@@ -12,7 +14,7 @@ The application follows a modular and hierarchical design:
 2.  **Parallel Research**: A `ParallelAgent` triggers the Flight, Hotel, and Sightseeing agents simultaneously to reduce turnaround time.
 3.  **Synthesis**: The final `Agent` (Planner) takes the JSON outputs from the research layer and crafts a user-friendly Markdown itinerary.
 
-## Agent Roles
+## Agent Roles (Powered by Gemini)
 
 | Agent | Responsibility | Output Format |
 | :--- | :--- | :--- |
@@ -21,51 +23,44 @@ The application follows a modular and hierarchical design:
 | **Sightseeing Agent** | Recommends local attractions and dining spots. | Structured JSON |
 | **Planner Agent** | Synthesizes research into a beautiful Markdown guide. | Markdown |
 
+> **Note**: All agents in this repository use the **Gemini 2.5 Flash** model for fast, accurate generation.
+
 ## Prerequisites
 
-1. **Python 3.11+** installed on your system.
-2. **Ollama** installed locally. You can download and install it from [ollama.com](https://ollama.com).
+1. **Docker and Docker Compose** installed on your system.
+2. A valid **Google API Key** to use the Gemini models.
 
 ## Setup Instructions
 
-### 1. Authenticate with Ollama Cloud
-Since this application uses cloud-hosted Ollama models (specifically `qwen3.5:cloud`), you need to authenticate your local Ollama CLI with Ollama Cloud.
+### 1. Configure the Environment
+Navigate to the `planner_agent` directory and create an `.env` file (if you haven't already). Insert your Google API key:
 
-Run the following command in your terminal and follow the prompt instructions to sign in:
-```bash
-ollama signin
-```
-*(For more information about Ollama Cloud, see the [official documentation](https://docs.ollama.com/cloud))*
-
-### 2. Create a Python Virtual Environment
-It is highly recommended to run this project inside an isolated virtual environment to prevent dependency conflicts.
-
-```bash
-# Create the virtual environment
-python -m venv .env
-
-# Activate it (Mac/Linux)
-source .env/bin/activate
-
-# Activate it (Windows)
-.env\Scripts\activate
+```text
+GOOGLE_API_KEY="your-api-key-here"
+GOOGLE_GENAI_USE_VERTEXAI=FALSE
 ```
 
-### 3. Install Dependencies
-With your virtual environment activated, install the required packages:
+### 2. Formulate the Network
+This application leverages Next.js API Routes to securely proxy frontend browser requests into the backend container running on an isolated `trip_network`. You do not need to configure any manual network settings.
+
+### 3. Run the Application with Docker Compose
+From the project root, build and start the application using Docker Compose:
 
 ```bash
-pip install -r requirements.txt
+docker-compose up --build
 ```
 
-### 4. Run the Application
-Start the ADK development web server by running the following command from the project root:
+### 4. Access the Planner
+Once the containers are successfully built and orchestrated:
+- **Frontend UI**: Open your browser to [http://localhost:3000](http://localhost:3000) to access the interactive web application.
+- **Backend API**: The FastAPI backend runs silently in the background on port `8000`.
 
-```bash
-adk web
-```
+## Local Development (Without Docker)
 
-Once the server starts, open the URL displayed in your terminal (normally [http://127.0.0.1:8000](http://127.0.0.1:8000)) in your web browser. From the UI, you can send prompts directly to the trip planner agent.
+If you wish to run the services manually without Docker:
+1. Ensure Node.js 20+ and Python 3.11+ are installed.
+2. **Backend**: From the root directory, install dependencies (`pip install -r requirements.txt`) and run `uvicorn server:app --reload`.
+3. **Frontend**: From the `frontend/` directory, install packages (`npm install`) and start the developer server (`npm run dev`).
 
 ## Sample Prompts & Results
 
