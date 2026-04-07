@@ -61,7 +61,3 @@ If you wish to run the services manually without Docker:
 1. Ensure Node.js 20+ and Python 3.11+ are installed.
 2. **Backend**: From the root directory, install dependencies (`pip install -r requirements.txt`) and run `uvicorn server:app --reload`.
 3. **Frontend**: From the `frontend/` directory, install packages (`npm install`) and start the developer server (`npm run dev`).
-
-## Sample Prompts & Results
-
-For detailed examples of how to interact with the agent and see the types of itineraries it generates, please refer to the [Sample Inputs and Outputs](Sample_inputs_and_outputs.md) file.
