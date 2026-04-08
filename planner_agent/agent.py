@@ -2,6 +2,9 @@ from google.adk.agents import LlmAgent
 from google.adk.agents.parallel_agent import ParallelAgent
 from google.adk.agents.sequential_agent import SequentialAgent
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from planner_agent.instructions import (
     FLIGHT_AGENT_INSTRUCTION,
     HOTEL_AGENT_INSTRUCTION,
