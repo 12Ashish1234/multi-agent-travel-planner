@@ -1,6 +1,7 @@
 from google.adk.agents import LlmAgent
 from google.adk.agents.parallel_agent import ParallelAgent
 from google.adk.agents.sequential_agent import SequentialAgent
+from google.adk.models.lite_llm import LiteLlm
 
 from planner_agent.instructions import (
     FLIGHT_AGENT_INSTRUCTION,
@@ -11,7 +12,7 @@ from planner_agent.instructions import (
 
 # Flight Agent: Specializes in flight booking and information
 flight_agent = LlmAgent(
-    model="gemini-2.5-flash",
+    model=LiteLlm(model="ollama_chat/gemma4:31b-cloud"),
     name="FlightAgent",
     description="Flight booking agent",
     instruction=FLIGHT_AGENT_INSTRUCTION,
@@ -20,7 +21,7 @@ flight_agent = LlmAgent(
 
 # Hotel Agent: Specializes in hotel booking and information
 hotel_agent = LlmAgent(
-    model="gemini-2.5-flash",
+    model=LiteLlm(model="ollama_chat/gemma4:31b-cloud"),
     name="HotelAgent",
     description="Hotel booking agent",
     instruction=HOTEL_AGENT_INSTRUCTION,
@@ -29,7 +30,7 @@ hotel_agent = LlmAgent(
 
 # Sightseeing Agent: Specializes in providing sightseeing recommendations
 sightseeing_agent = LlmAgent(
-    model="gemini-2.5-flash",
+    model=LiteLlm(model="ollama_chat/gemma4:31b-cloud"),
     name="SightseeingAgent",
     description="Sightseeing information agent",
     instruction=SIGHTSEEING_AGENT_INSTRUCTION,
@@ -45,7 +46,7 @@ parallel_agent = ParallelAgent(
 
 # Planner Agent synthesizing the options into a cohesive Markdown itinerary
 planner_agent = LlmAgent(
-    model="gemini-2.5-flash",
+    model=LiteLlm(model="ollama_chat/gemma4:31b-cloud"),
     name="PlannerAgent",
     instruction=TRIP_PLANNER_INSTRUCTION,
     description="Synthesizes all the parallel research into a well-formatted Markdown itinerary."

@@ -14,7 +14,7 @@ The application follows a modular and hierarchical design:
 2.  **Parallel Research**: A `ParallelAgent` triggers the Flight, Hotel, and Sightseeing agents simultaneously to reduce turnaround time.
 3.  **Synthesis**: The final `Agent` (Planner) takes the JSON outputs from the research layer and crafts a user-friendly Markdown itinerary.
 
-## Agent Roles (Powered by Gemini)
+## Agent Roles (Powered by Ollama)
 
 | Agent | Responsibility | Output Format |
 | :--- | :--- | :--- |
@@ -23,21 +23,20 @@ The application follows a modular and hierarchical design:
 | **Sightseeing Agent** | Recommends local attractions and dining spots. | Structured JSON |
 | **Planner Agent** | Synthesizes research into a beautiful Markdown guide. | Markdown |
 
-> **Note**: All agents in this repository use the **Gemini 2.5 Flash** model for fast, accurate generation.
+> **Note**: All agents in this repository use local models via **Ollama** for fast, accurate generation.
 
 ## Prerequisites
 
 1. **Docker and Docker Compose** installed on your system.
-2. A valid **Google API Key** to use the Gemini models.
+2. **Ollama** installed on your system. You can follow instructions from the official Ollama website to get it set up.
 
 ## Setup Instructions
 
-### 1. Configure the Environment
-Navigate to the `planner_agent` directory and create an `.env` file (if you haven't already). Insert your Google API key:
+### 1. Configure Ollama
+Before running the application, make sure Ollama is installed and running. You will also need to log in to Ollama. Open your terminal and run the login command:
 
-```text
-GOOGLE_API_KEY="your-api-key-here"
-GOOGLE_GENAI_USE_VERTEXAI=FALSE
+```bash
+ollama signin
 ```
 
 ### 2. Formulate the Network
