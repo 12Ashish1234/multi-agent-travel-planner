@@ -1,1 +1,0 @@
-Structured and Unstructured data, how would you handle it in an agentic AI system to fetch information. RAG based approach OR simple python logic approach??
