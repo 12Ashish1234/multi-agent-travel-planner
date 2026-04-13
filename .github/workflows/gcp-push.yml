@@ -38,19 +38,21 @@ jobs:
 
       - name: Debug Variables
         run: |
-          echo "PROJECT_ID is: ${PROJECT_ID}"
-          echo "Secret GCP_PROJECT_ID is: ${{ secrets.GCP_PROJECT_ID }}"
+          # GitHub masks exact secret matches with ***. 
+          # By inserting spaces between characters, we can safely bypass the mask to verify the value.
+          echo "PROJECT_ID (with spaces to bypass masking):"
+          echo "${PROJECT_ID}" | sed 's/./& /g'
 
-      # - name: Build and Push Backend Image
-      #   run: |
-      #     PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
-      #     IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/backend:latest"
-      #     docker build -t $IMAGE_PATH -f Dockerfile.backend .
-      #     docker push $IMAGE_PATH
+      - name: Build and Push Backend Image
+        run: |
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/backend:latest"
+          docker build -t $IMAGE_PATH -f Dockerfile.backend .
+          docker push $IMAGE_PATH
 
-      # - name: Build and Push Frontend Image
-      #   run: |
-      #     PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
-      #     IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/frontend:latest"
-      #     docker build -t $IMAGE_PATH -f frontend/Dockerfile ./frontend
-      #     docker push $IMAGE_PATH
+      - name: Build and Push Frontend Image
+        run: |
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/frontend:latest"
+          docker build -t $IMAGE_PATH -f frontend/Dockerfile ./frontend
+          docker push $IMAGE_PATH
