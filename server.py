@@ -1,83 +1,230 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from planner_agent.agent import root_agent
+import logging
+import os
+import uuid
+
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Mount, Route
+
+import uvicorn
+from a2a.server.apps import A2AStarletteApplication
+from a2a.server.request_handlers import DefaultRequestHandler
+from a2a.server.tasks import InMemoryTaskStore
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentSkill,
+)
+from agentexecutor import TravelPlannerAgentExecutor
+from dotenv import load_dotenv
+from google.adk.artifacts import InMemoryArtifactService
+from google.adk.memory.in_memory_memory_service import InMemoryMemoryService
 from google.adk.runners import Runner
-from google.adk.sessions.in_memory_session_service import InMemorySessionService
-from google.genai import types
-import json
+from google.adk.sessions import InMemorySessionService
+from google.genai import types as genai_types
+from planner_agent.agent import root_agent as travel_planner_agent
 
-app = FastAPI()
+load_dotenv()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # For development
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-class PlanRequest(BaseModel):
-    prompt: str
 
-# Initialize the Runner with InMemorySessionService
-runner = Runner(
-    app_name="trip_planner",
-    agent=root_agent,
-    session_service=InMemorySessionService(),
-    auto_create_session=True
-)
+class MissingAPIKeyError(Exception):
+    """Exception raised when a required API key is absent."""
 
-@app.post("/api/plan")
-async def create_plan(request: PlanRequest):
-    final_output = ""
-    
-    # Create the user message
-    new_message = types.Content(role="user", parts=[types.Part.from_text(text=request.prompt)])
+    pass
+
+
+def main():
+    """Starts the Multi-Agent Travel Planner A2A agent server."""
+    host = "localhost"
+    port = 8000  # Port 8000 matches what the Next.js frontend proxy expects
 
     try:
-        # Run the agent using ADK Runner
-        async for event in runner.run_async(
-            user_id="anonymous",
-            session_id="session_1",
-            new_message=new_message
-        ):
-            if event.content and event.content.parts:
-                text = "".join(p.text for p in event.content.parts if p.text)
-                if text:
-                    if event.author == "PlannerAgent":
-                        final_output += text
-                    elif not final_output and event.author == "TripPlannerPipeline":
-                        final_output += text
-                    elif event.author == root_agent.name:
-                        final_output += text
-                    
-        if not final_output:
-            final_output = "No itinerary generated. Please ensure your prompt is clear."
-        else:
-            import re
-            # Remove <think>...</think> blocks if present
-            final_output = re.sub(r'<think>.*?</think>', '', final_output, flags=re.DOTALL)
-            
-            # Fallback for models that output "Thinking Process: ... Let's write it."
-            # We can try to strip it if "Thinking Process:" is at the start and followed by a clear break.
-            # But the prompt should ideally handle this now. Just in case, if we find "Thinking Process:",
-            # we might split by the first double newline or markdown heading.
-            # A simple rule: If it starts with "Thinking Process:", find the first actual markdown heading "#" or emoji flag.
-            if "Thinking Process:" in final_output:
-                # Find the first major heading or emoji that usually starts the itinerary
-                match = re.search(r'(?:\n\n|\n)(#|🇯🇵|✈️|🏨|🗓️|Phase|\*\*Title:\*\*)', final_output)
-                if match:
-                    final_output = final_output[match.start():]
-            
-            final_output = final_output.strip()
-            
-    except Exception as e:
-        print(f"Error executing runner: {e}")
-        final_output = f"An error occurred while generating the plan: {str(e)}"
+        # ------------------------------------------------------------------
+        # API-key validation
+        # ------------------------------------------------------------------
+        if not os.getenv("GOOGLE_GENAI_USE_VERTEXAI") == "TRUE":
+            if not os.getenv("GOOGLE_API_KEY"):
+                raise MissingAPIKeyError(
+                    "GOOGLE_API_KEY environment variable not set and "
+                    "GOOGLE_GENAI_USE_VERTEXAI is not TRUE."
+                )
 
-    return {"itinerary": final_output}
+        # ------------------------------------------------------------------
+        # Agent Card — describes the Travel Planner agent's capabilities
+        # ------------------------------------------------------------------
+        capabilities = AgentCapabilities(streaming=True)
+
+        # Four skills matching the travel planner agent's capabilities
+        skill_plan_trip = AgentSkill(
+            id="plan_trip",
+            name="Plan Trip Itinerary",
+            description=(
+                "Generate a comprehensive day-by-day travel itinerary for any "
+                "destination. Concurrently researches flight options, hotel "
+                "accommodations, and sightseeing activities, then synthesizes "
+                "them into a beautifully formatted Markdown travel guide."
+            ),
+            tags=["travel", "itinerary", "planning", "trip"],
+            examples=[
+                "Plan a 5-day trip to Tokyo from New York in March",
+                "I want to visit Paris for a week, departing from London on June 10th with a budget of $2000",
+            ],
+        )
+
+        skill_flights = AgentSkill(
+            id="find_flights",
+            name="Find Flight Options",
+            description=(
+                "Research and recommend the best flight options for a given "
+                "route and travel date, including airline, duration, layovers, "
+                "and estimated pricing."
+            ),
+            tags=["flights", "travel", "booking", "airlines"],
+            examples=[
+                "Find flights from Mumbai to Dubai on December 15th",
+                "What are the best flight options from NYC to London?",
+            ],
+        )
+
+        skill_hotels = AgentSkill(
+            id="find_hotels",
+            name="Find Hotel Accommodations",
+            description=(
+                "Recommend top-rated hotel accommodations for a destination "
+                "based on stay duration, including ratings, pricing per night, "
+                "and key amenities."
+            ),
+            tags=["hotels", "accommodation", "travel", "booking"],
+            examples=[
+                "Find hotels in Bali for a 7-night stay",
+                "What hotels are recommended in Rome for a budget trip?",
+            ],
+        )
+
+        skill_sightseeing = AgentSkill(
+            id="find_sightseeing",
+            name="Find Sightseeing & Activities",
+            description=(
+                "Discover top attractions, local experiences, hidden gems, and "
+                "dining recommendations for any travel destination."
+            ),
+            tags=["sightseeing", "attractions", "activities", "dining", "travel"],
+            examples=[
+                "What are the top things to do in Amsterdam?",
+                "Recommend local dining and attractions in Bangkok",
+            ],
+        )
+
+        agent_card = AgentCard(
+            name="trip_planner_agent",
+            description=(
+                "Multi-Agent Trip Planner powered by Google ADK. Uses a "
+                "parallel-to-sequential architecture to concurrently research "
+                "flights, hotels, and sightseeing options, then synthesizes "
+                "them into a cohesive Markdown travel itinerary."
+            ),
+            url=f"http://{host}:{port}/",
+            version="1.0.0",
+            defaultInputModes=["text/plain"],
+            defaultOutputModes=["text/plain"],
+            capabilities=capabilities,
+            skills=[skill_plan_trip, skill_flights, skill_hotels, skill_sightseeing],
+        )
+
+        # ------------------------------------------------------------------
+        # ADK Runner + TravelPlannerAgentExecutor
+        # ------------------------------------------------------------------
+        runner = Runner(
+            app_name=agent_card.name,
+            agent=travel_planner_agent,
+            artifact_service=InMemoryArtifactService(),
+            session_service=InMemorySessionService(),
+            memory_service=InMemoryMemoryService(),
+        )
+        agent_executor = TravelPlannerAgentExecutor(runner=runner, event_queue=None)
+
+        # ------------------------------------------------------------------
+        # A2A request handler & Starlette application
+        # ------------------------------------------------------------------
+        request_handler = DefaultRequestHandler(
+            agent_executor=agent_executor,
+            task_store=InMemoryTaskStore(),
+        )
+        a2a_app = A2AStarletteApplication(
+            agent_card=agent_card,
+            http_handler=request_handler,
+        ).build()
+
+        # ------------------------------------------------------------------
+        # REST bridge: POST /api/plan  <-- called by the Next.js frontend
+        # Accepts: { "prompt": "..." }
+        # Returns: { "itinerary": "...markdown..." }
+        # ------------------------------------------------------------------
+        async def plan_endpoint(request: Request) -> JSONResponse:
+            try:
+                body = await request.json()
+                prompt = body.get("prompt", "").strip()
+                if not prompt:
+                    return JSONResponse({"error": "prompt is required"}, status_code=400)
+
+                session_id = str(uuid.uuid4())
+                session = await runner.session_service.create_session(
+                    app_name=agent_card.name,
+                    user_id="frontend_user",
+                    session_id=session_id,
+                )
+                message = genai_types.Content(
+                    role="user",
+                    parts=[genai_types.Part(text=prompt)],
+                )
+                itinerary = ""
+                async for event in runner.run_async(
+                    session_id=session.id,
+                    user_id="frontend_user",
+                    new_message=message,
+                ):
+                    # Collect text from the final response event.
+                    # Do NOT break early — the ADK ParallelAgent uses an
+                    # asyncio.TaskGroup internally. Closing the async generator
+                    # before it finishes (via break) raises GeneratorExit inside
+                    # the TaskGroup and produces a noisy BaseExceptionGroup log.
+                    if event.is_final_response() and event.content:
+                        for part in event.content.parts:
+                            if part.text:
+                                itinerary += part.text
+
+                return JSONResponse({"itinerary": itinerary})
+            except Exception as exc:
+                logger.exception("Error in /api/plan: %s", exc)
+                return JSONResponse({"error": str(exc)}, status_code=500)
+
+        # Mount the REST bridge at /api/plan and fall back to the A2A app
+        app = Starlette(
+            routes=[
+                Route("/api/plan", plan_endpoint, methods=["POST"]),
+                Mount("/", app=a2a_app),
+            ]
+        )
+
+        logger.info(
+            "Starting Travel Planner server at http://%s:%d", host, port
+        )
+        logger.info("  ➜ A2A protocol : http://%s:%d/", host, port)
+        logger.info("  ➜ REST bridge  : http://%s:%d/api/plan", host, port)
+
+        uvicorn.run(app, host=host, port=port)
+
+    except MissingAPIKeyError as e:
+        logger.error("Configuration error: %s", e)
+        exit(1)
+    except Exception as e:
+        logger.error("An error occurred during server startup: %s", e)
+        exit(1)
+
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
