@@ -38,12 +38,14 @@ jobs:
 
       - name: Build and Push Backend Image
         run: |
-          IMAGE_PATH="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/backend:latest"
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/backend-a2a:latest"
           docker build -t $IMAGE_PATH -f Dockerfile.backend .
           docker push $IMAGE_PATH
 
       - name: Build and Push Frontend Image
         run: |
-          IMAGE_PATH="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/frontend:latest"
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/frontend-a2a:latest"
           docker build -t $IMAGE_PATH -f frontend/Dockerfile ./frontend
           docker push $IMAGE_PATH
