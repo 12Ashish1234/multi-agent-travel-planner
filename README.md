@@ -2,7 +2,7 @@
 
 This is a multi-agent trip planning application built using the [Google Agent Development Kit (ADK)](https://github.com/google/adk). It uses a parallel-to-sequential agent architecture to gather flight options, hotel accommodations, and sightseeing recommendations concurrently, then synthesizes them into a cohesive Markdown itinerary.
 
-The application is built with a **FastAPI** backend that runs the ADK agent pipeline, and a modern **Next.js** frontend for an interactive user interface. The entire stack is fully containerized using **Docker Compose**.
+The application is built with a **FastAPI** backend that runs the ADK agent pipeline, and a modern **Next.js** frontend for an interactive user interface.
 
 ## Design Architecture
 
@@ -27,7 +27,7 @@ The application follows a modular and hierarchical design:
 
 ## Prerequisites
 
-1. **Docker and Docker Compose** installed on your system.
+1. **Node.js 20+** and **Python 3.11+** installed on your system.
 2. **Ollama** installed on your system. You can follow instructions from the official Ollama website to get it set up.
 
 ## Setup Instructions
@@ -42,14 +42,8 @@ ollama signin
 ### 2. Formulate the Network
 This application leverages Next.js API Routes to securely proxy frontend browser requests into the backend container running on an isolated `trip_network`. You do not need to configure any manual network settings.
 
-### 3. Run the Application with Docker Compose
-From the project root, build and start the application using Docker Compose:
 
-```bash
-docker-compose up --build
-```
-
-### 4. Access the Planner
+### 3. Access the Planner
 Once the containers are successfully built and orchestrated:
 - **Frontend UI**: Open your browser to [http://localhost:3000](http://localhost:3000) to access the interactive web application.
 - **Backend API**: The FastAPI backend runs silently in the background on port `8000`.
