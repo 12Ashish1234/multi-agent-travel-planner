@@ -37,8 +37,8 @@ class MissingAPIKeyError(Exception):
     pass
 
 
-def main():
-    """Starts the Multi-Agent Travel Planner A2A agent server."""
+def create_app():
+    """Creates the Multi-Agent Travel Planner A2A agent server."""
     host = "localhost"
     port = 8000  # Port 8000 matches what the Next.js frontend proxy expects
 
@@ -193,9 +193,11 @@ def main():
                     # before it finishes (via break) raises GeneratorExit inside
                     # the TaskGroup and produces a noisy BaseExceptionGroup log.
                     if event.is_final_response() and event.content:
-                        for part in event.content.parts:
-                            if part.text:
-                                itinerary += part.text
+                        # Overwrite itinerary to ensure we only keep the LAST final response.
+                        # This safely discards the intermediate JSON responses from the parallel sub-agents.
+                        current_text = "".join(part.text for part in event.content.parts if part.text)
+                        if current_text:
+                            itinerary = current_text
 
                 return JSONResponse({"itinerary": itinerary})
             except Exception as exc:
@@ -216,7 +218,7 @@ def main():
         logger.info("  ➜ A2A protocol : http://%s:%d/", host, port)
         logger.info("  ➜ REST bridge  : http://%s:%d/api/plan", host, port)
 
-        uvicorn.run(app, host=host, port=port)
+        return app
 
     except MissingAPIKeyError as e:
         logger.error("Configuration error: %s", e)
@@ -226,5 +228,7 @@ def main():
         exit(1)
 
 
+app = create_app()
+
 if __name__ == "__main__":
-    main()
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

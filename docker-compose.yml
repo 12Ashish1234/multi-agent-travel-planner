@@ -9,8 +9,6 @@ services:
       - "8000:8000"
     env_file:
       - ./planner_agent/.env
-    networks:
-      - trip_network
 
   frontend:
     build:
@@ -20,11 +18,5 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:8000
-    networks:
-      - trip_network
     depends_on:
       - backend
-
-networks:
-  trip_network:
-    driver: bridge
