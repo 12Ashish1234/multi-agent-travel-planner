@@ -1,0 +1,25 @@
+# Version control
+.git
+.gitignore
+
+# Documentation
+*.md
+
+# Frontend directory (Backend image doesn't need this)
+frontend/
+
+# Python caches & environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Local env files (prevent accidentally pushing secrets)
+**/.env
+
+# Docker & CI/CD configs
+docker-compose.yml
+.github/

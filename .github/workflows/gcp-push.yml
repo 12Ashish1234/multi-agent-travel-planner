@@ -1,0 +1,58 @@
+name: Build and Push to GCP
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-south1
+  REPO_NAME: trip-planner-repo
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    # These permissions are required for Workload Identity Federation
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Debug Variables
+        run: |
+          # GitHub masks exact secret matches with ***. 
+          # By inserting spaces between characters, we can safely bypass the mask to verify the value.
+          echo "PROJECT_ID (with spaces to bypass masking):"
+          echo "${PROJECT_ID}" | sed 's/./& /g'
+
+      - name: Build and Push Backend Image
+        run: |
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/backend:latest"
+          docker build -t $IMAGE_PATH -f Dockerfile.backend .
+          docker push $IMAGE_PATH
+
+      - name: Build and Push Frontend Image
+        run: |
+          PROJECT_ID_LOWER=$(echo "${PROJECT_ID}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${REGION}-docker.pkg.dev/${PROJECT_ID_LOWER}/${REPO_NAME}/frontend:latest"
+          docker build -t $IMAGE_PATH -f frontend/Dockerfile ./frontend
+          docker push $IMAGE_PATH
