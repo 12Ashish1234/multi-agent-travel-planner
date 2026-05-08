@@ -25,7 +25,7 @@ hotel_agent = LlmAgent(
     name="HotelAgent",
     description="Hotel booking agent",
     instruction=HOTEL_AGENT_INSTRUCTION,
-    output_key="hotel_options"
+    output_key="hotel_options",
 )
 
 # Sightseeing Agent: Specializes in providing sightseeing recommendations
