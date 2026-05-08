@@ -331,6 +331,7 @@ export default function Home() {
                       bgcolor: msg.role === 'user' ? 'rgba(192, 132, 252, 0.05)' : 'background.paper',
                       border: '1px solid',
                       borderColor: msg.role === 'user' ? 'rgba(192, 132, 252, 0.2)' : 'divider',
+                      overflowX: 'auto',
                     }}
                   >
                     <div className="markdown-content">

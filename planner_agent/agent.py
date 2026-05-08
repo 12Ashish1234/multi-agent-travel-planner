@@ -7,13 +7,18 @@ from planner_agent.instructions import (
     FLIGHT_AGENT_INSTRUCTION,
     HOTEL_AGENT_INSTRUCTION,
     SIGHTSEEING_AGENT_INSTRUCTION,
-    TRIP_PLANNER_INSTRUCTION
+    TRIP_PLANNER_INSTRUCTION,
+    INTENT_ROUTER_INSTRUCTION,
+    CHAT_AGENT_INSTRUCTION
 )
 from dotenv import load_dotenv
 import os
+
 load_dotenv()
-MODEL = os.getenv("MODEL")
-# Flight Agent: Specializes in flight booking and information
+MODEL = os.getenv("MODEL", "ollama_chat/gemma4:31b-cloud")
+
+# --- Specialized Research Agents ---
+
 flight_agent = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="FlightAgent",
@@ -22,7 +27,6 @@ flight_agent = LlmAgent(
     output_key="flight_options"
 )
 
-# Hotel Agent: Specializes in hotel booking and information
 hotel_agent = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="HotelAgent",
@@ -31,7 +35,6 @@ hotel_agent = LlmAgent(
     output_key="hotel_options",
 )
 
-# Sightseeing Agent: Specializes in providing sightseeing recommendations
 sightseeing_agent = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="SightseeingAgent",
@@ -40,24 +43,45 @@ sightseeing_agent = LlmAgent(
     output_key="sightseeing_options"
 )
 
-# Parallel Agent orchestrating the three specialized domains
-parallel_agent = ParallelAgent(
+# --- Orchestration Layers ---
+
+# Parallel Agent gathering all research data
+parallel_researcher = ParallelAgent(
     name="ParallelTripAgents",
     sub_agents=[flight_agent, hotel_agent, sightseeing_agent],
     description="Runs flight, hotel, and sightseeing agents concurrently to gather comprehensive trip options."
 )
 
-# Planner Agent synthesizing the options into a cohesive Markdown itinerary
-planner_agent = LlmAgent(
+# Synthesis Agent crafting the final markdown
+planner_synthesis_agent = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="PlannerAgent",
     instruction=TRIP_PLANNER_INSTRUCTION,
     description="Synthesizes all the parallel research into a well-formatted Markdown itinerary."
 )
 
-# Root Pipeline Agent executing the overall structure strictly sequence
-root_agent = SequentialAgent(
-    name="TripPlannerPipeline",
-    sub_agents=[parallel_agent, planner_agent],
-    description="Coordinates parallel research and synthesizes the final itinerary."
+# The full Research Pipeline as a single unit
+research_pipeline = SequentialAgent(
+    name="ResearchPipeline",
+    sub_agents=[parallel_researcher, planner_synthesis_agent],
+    description="Executes full research for flights, hotels, and sightseeing, then generates a complete itinerary. Use this for new trips or major changes."
+)
+
+# Simple Chat Agent for conversational turns
+chat_agent = LlmAgent(
+    model=LiteLlm(model=MODEL),
+    name="ChatAgent",
+    instruction=CHAT_AGENT_INSTRUCTION,
+    description="Handles greetings, thank yous, and simple conversational questions about the existing plan. Use this for non-research tasks."
+)
+
+# --- Root Router Agent ---
+
+# The IntentAgent acts as the dispatcher (Router)
+root_agent = LlmAgent(
+    model=LiteLlm(model=MODEL),
+    name="IntentAgent",
+    instruction=INTENT_ROUTER_INSTRUCTION,
+    sub_agents=[chat_agent, research_pipeline],
+    description="Main entry point. Analyzes user intent and delegates to either ResearchPipeline for trip planning or ChatAgent for simple conversation."
 )

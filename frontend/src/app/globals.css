@@ -20,6 +20,32 @@ body {
 .markdown-content {
   line-height: 1.6;
   font-size: 0.95rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.markdown-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.markdown-content code {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+  white-space: pre;
+  word-break: normal;
 }
 
 .markdown-content h1, 
