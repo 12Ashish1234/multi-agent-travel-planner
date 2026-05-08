@@ -15,12 +15,16 @@ import {
   ThemeProvider,
   createTheme,
   CssBaseline,
-  Tooltip
+  Tooltip,
+  Grid,
+  Button,
+  Collapse
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff';
 import ReactMarkdown from 'react-markdown';
 
 // Define a dark theme similar to the existing one but using MUI
@@ -57,6 +61,16 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState('');
+  
+  // Structured input state
+  const [tripDetails, setTripDetails] = useState({
+    source: '',
+    destination: '',
+    dates: '',
+    days: '',
+    people: ''
+  });
+
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -71,19 +85,42 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleTripDetailChange = (e) => {
+    const { name, value } = e.target;
+    setTripDetails(prev => ({ ...prev, [name]: value }));
+  };
 
-    const userMessage = { role: 'user', content: input };
+  const startTripFromDetails = async () => {
+    const { source, destination, dates, days, people } = tripDetails;
+    if (!destination || !days) return;
+
+    let prompt = `Plan a trip to ${destination}`;
+    if (source) prompt += ` from ${source}`;
+    if (days) prompt += ` for ${days} days`;
+    if (people) prompt += ` for ${people} people`;
+    if (dates) prompt += ` starting around ${dates}`;
+    prompt += ". Please provide a detailed itinerary with flights, hotels, and sightseeing.";
+
+    handleSend(prompt);
+  };
+
+  const handleSend = async (customPrompt) => {
+    const promptToSend = typeof customPrompt === 'string' ? customPrompt : input;
+    if (!promptToSend.trim() || isLoading) return;
+
+    const userMessage = { role: 'user', content: promptToSend };
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    
+    // Only clear input if it was a manual chat message
+    if (typeof customPrompt !== 'string') setInput('');
+    
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: input, sessionId }),
+        body: JSON.stringify({ prompt: promptToSend, sessionId }),
       });
 
       if (!response.ok) {
@@ -121,32 +158,142 @@ export default function Home() {
         <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 4 }}>
           <Container maxWidth="md">
             {messages.length === 0 && (
-              <Box sx={{ 
-                textAlign: 'center', 
-                mt: 12, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center',
-                gap: 2
-              }}>
+              <Box sx={{ mb: 4 }}>
                 <Box sx={{ 
-                  width: 80, 
-                  height: 80, 
-                  borderRadius: '50%', 
-                  bgcolor: 'rgba(59, 130, 246, 0.1)', 
+                  textAlign: 'center', 
+                  mt: 4, 
+                  mb: 6,
                   display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  mb: 2
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  gap: 2
                 }}>
-                  <TravelExploreIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                  <Box sx={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: '50%', 
+                    bgcolor: 'rgba(59, 130, 246, 0.1)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    mb: 1
+                  }}>
+                    <TravelExploreIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                  </Box>
+                  <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+                    Where would you like to go?
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 450 }}>
+                    I can help you plan the perfect itinerary. Fill in the details below or just start chatting!
+                  </Typography>
                 </Box>
-                <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
-                  Where would you like to go?
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 450 }}>
-                  I can help you plan the perfect itinerary with flight, hotel, and sightseeing recommendations.
-                </Typography>
+
+                <Paper 
+                  elevation={0} 
+                  sx={{ 
+                    p: 4, 
+                    borderRadius: 4, 
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    mb: 6
+                  }}
+                >
+                  <Typography variant="h6" sx={{ mb: 3, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FlightTakeoffIcon color="primary" /> Quick Start
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Source"
+                        placeholder="e.g. New York"
+                        name="source"
+                        value={tripDetails.source}
+                        onChange={handleTripDetailChange}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Destination"
+                        placeholder="e.g. Tokyo, Japan"
+                        name="destination"
+                        value={tripDetails.destination}
+                        onChange={handleTripDetailChange}
+                        variant="outlined"
+                        size="small"
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="Dates"
+                        placeholder="e.g. July 2024"
+                        name="dates"
+                        value={tripDetails.dates}
+                        onChange={handleTripDetailChange}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="Days"
+                        type="number"
+                        placeholder="e.g. 7"
+                        name="days"
+                        value={tripDetails.days}
+                        onChange={handleTripDetailChange}
+                        variant="outlined"
+                        size="small"
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="People"
+                        type="number"
+                        placeholder="e.g. 2"
+                        name="people"
+                        value={tripDetails.people}
+                        onChange={handleTripDetailChange}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Button 
+                        fullWidth 
+                        variant="contained" 
+                        size="large"
+                        onClick={startTripFromDetails}
+                        disabled={isLoading || !tripDetails.destination || !tripDetails.days}
+                        sx={{ 
+                          py: 1.5, 
+                          fontWeight: 700, 
+                          borderRadius: 2,
+                          boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.39)'
+                        }}
+                      >
+                        {isLoading ? 'Planning your trip...' : 'Generate Itinerary'}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+                  <Typography variant="body2" sx={{ px: 2, color: 'text.secondary', fontWeight: 500 }}>
+                    OR CHAT BELOW
+                  </Typography>
+                  <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+                </Box>
               </Box>
             )}
             

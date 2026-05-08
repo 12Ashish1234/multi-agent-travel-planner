@@ -1,8 +1,6 @@
 1. Testing
 
 2. Run this -
-    at the very beginning of the chat interface, let there be some input fields for the user to provide their travel information. The main travel information fields must be source,            
-    destination, dates, number of days, and number of people travelling. Add this into the chat interface and after the first generation of the itinerary, the user must be able to ask or      
-    converse with the agent naturally
+at the very beginning of the chat interface, let there be some input fields for the user to provide their travel information. The main travel information fields must be source, destination, dates, number of days, and number of people travelling. Add this into the chat interface and after the first generation of the itinerary, the user must be able to ask or converse with the agent naturally as we do with interfaces like chatgpt or gemini
 
 3. research about session services
