@@ -12,7 +12,10 @@ export async function POST(req) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        prompt: body.prompt,
+        session_id: body.sessionId
+      }),
     });
 
     if (!response.ok) {

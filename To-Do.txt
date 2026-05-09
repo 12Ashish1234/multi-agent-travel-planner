@@ -1,0 +1,2 @@
+1. research about session services
+2. have stored different chat sessions in RedisDB or some other database

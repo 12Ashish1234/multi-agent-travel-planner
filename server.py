@@ -6,6 +6,7 @@ from google.adk.runners import Runner
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
 import json
+import re
 
 app = FastAPI()
 
@@ -19,8 +20,9 @@ app.add_middleware(
 
 class PlanRequest(BaseModel):
     prompt: str
+    session_id: str = "session_1"
 
-# Initialize the Runner with InMemorySessionService
+# Initialize a single runner with the root IntentAgent
 runner = Runner(
     app_name="trip_planner",
     agent=root_agent,
@@ -30,52 +32,51 @@ runner = Runner(
 
 @app.post("/api/plan")
 async def create_plan(request: PlanRequest):
-    final_output = ""
+    print(f"\n--- New Planning Request [Session: {request.session_id}] ---")
+    print(f"User Prompt: {request.prompt[:100]}...")
     
-    # Create the user message
+    final_output = ""
     new_message = types.Content(role="user", parts=[types.Part.from_text(text=request.prompt)])
 
     try:
         # Run the agent using ADK Runner
+        # The root IntentAgent will handle routing internally to ResearchPipeline or ChatAgent
+        print(f"Starting execution with {root_agent.name}...")
         async for event in runner.run_async(
             user_id="anonymous",
-            session_id="session_1",
+            session_id=request.session_id,
             new_message=new_message
         ):
+            if event.author:
+                # Log the agent activity
+                content_preview = ""
+                if event.content and event.content.parts:
+                    content_preview = "".join(p.text for p in event.content.parts if p.text)[:50].replace('\n', ' ')
+                
+                print(f"  [AGENT EVENT] Author: {event.author:20} | Content: {content_preview}...")
+
             if event.content and event.content.parts:
                 text = "".join(p.text for p in event.content.parts if p.text)
                 if text:
-                    if event.author == "PlannerAgent":
-                        final_output += text
-                    elif not final_output and event.author == "TripPlannerPipeline":
-                        final_output += text
-                    elif event.author == root_agent.name:
+                    # Collect output from the final agents in the hierarchy
+                    # We collect from PlannerAgent (synthesis), ChatAgent (conversation), 
+                    # or the pipeline/root names as fallbacks.
+                    if event.author in ["PlannerAgent", "ChatAgent", "ResearchPipeline", "IntentAgent"]:
                         final_output += text
                     
         if not final_output:
-            final_output = "No itinerary generated. Please ensure your prompt is clear."
+            print("  [WARNING] No output collected from agents.")
+            final_output = "I'm sorry, I couldn't process that. Could you please rephrase?"
         else:
-            import re
-            # Remove <think>...</think> blocks if present
-            final_output = re.sub(r'<think>.*?</think>', '', final_output, flags=re.DOTALL)
-            
-            # Fallback for models that output "Thinking Process: ... Let's write it."
-            # We can try to strip it if "Thinking Process:" is at the start and followed by a clear break.
-            # But the prompt should ideally handle this now. Just in case, if we find "Thinking Process:",
-            # we might split by the first double newline or markdown heading.
-            # A simple rule: If it starts with "Thinking Process:", find the first actual markdown heading "#" or emoji flag.
-            if "Thinking Process:" in final_output:
-                # Find the first major heading or emoji that usually starts the itinerary
-                match = re.search(r'(?:\n\n|\n)(#|🇯🇵|✈️|🏨|🗓️|Phase|\*\*Title:\*\*)', final_output)
-                if match:
-                    final_output = final_output[match.start():]
-            
-            final_output = final_output.strip()
+            print(f"  [SUCCESS] Generated response.")
+            # Clean up <think> blocks
+            final_output = re.sub(r'<think>.*?</think>', '', final_output, flags=re.DOTALL).strip()
             
     except Exception as e:
-        print(f"Error executing runner: {e}")
-        final_output = f"An error occurred while generating the plan: {str(e)}"
+        print(f"  [ERROR] Execution failed: {e}")
+        final_output = f"An error occurred: {str(e)}"
 
+    print(f"--- Request Complete ---\n")
     return {"itinerary": final_output}
 
 if __name__ == "__main__":
