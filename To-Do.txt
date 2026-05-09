@@ -1,2 +1,9 @@
-1. research about session services
-2. have stored different chat sessions in RedisDB or some other database
+research about session service - Done
+store different chat sessions in RedisDB or some other database and update the UI - Done
+modify dockerfile for ollama backend - Pending
+MCP tools integration for flight, hotel and sightseeing agents - Pending
+
+Testing:
+1. Code has been updated to invoke only the necessary agents based on the user request. For minor modifications, such as changes to a specific day in the itinerary, multiple agents are no longer triggered unnecessarily. This functionality now requires testing to ensure the correct agents are called in different scenarios.
+
+2. Check the implemented functionality of chat sessions
