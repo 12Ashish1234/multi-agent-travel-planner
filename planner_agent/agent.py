@@ -1,6 +1,4 @@
 from google.adk.agents import LlmAgent
-from google.adk.agents.parallel_agent import ParallelAgent
-from google.adk.agents.sequential_agent import SequentialAgent
 from google.adk.models.lite_llm import LiteLlm
 
 from planner_agent.instructions import (
@@ -8,7 +6,7 @@ from planner_agent.instructions import (
     HOTEL_AGENT_INSTRUCTION,
     SIGHTSEEING_AGENT_INSTRUCTION,
     TRIP_PLANNER_INSTRUCTION,
-    INTENT_ROUTER_INSTRUCTION,
+    MASTER_PLANNER_INSTRUCTION,
     CHAT_AGENT_INSTRUCTION
 )
 from dotenv import load_dotenv
@@ -17,71 +15,58 @@ import os
 load_dotenv()
 MODEL = os.getenv("MODEL", "ollama_chat/gemma4:31b-cloud")
 
-# --- Specialized Research Agents ---
+# --- Specialized Agents ---
+# Flat hierarchy: MasterPlanner is the root with access to all specialists.
 
-flight_agent = LlmAgent(
+flight_worker = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="FlightAgent",
-    description="Flight booking agent",
-    instruction=FLIGHT_AGENT_INSTRUCTION,
-    output_key="flight_options"
+    description="Researches flights. Return results in strictly valid JSON format only.",
+    instruction=FLIGHT_AGENT_INSTRUCTION
 )
 
-hotel_agent = LlmAgent(
+hotel_worker = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="HotelAgent",
-    description="Hotel booking agent",
-    instruction=HOTEL_AGENT_INSTRUCTION,
-    output_key="hotel_options",
+    description="Researches hotels. Return results in strictly valid JSON format only.",
+    instruction=HOTEL_AGENT_INSTRUCTION
 )
 
-sightseeing_agent = LlmAgent(
+sightseeing_worker = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="SightseeingAgent",
-    description="Sightseeing information agent",
-    instruction=SIGHTSEEING_AGENT_INSTRUCTION,
-    output_key="sightseeing_options"
+    description="Researches activities. Return results in strictly valid JSON format only.",
+    instruction=SIGHTSEEING_AGENT_INSTRUCTION
 )
 
-# --- Orchestration Layers ---
-
-# Parallel Agent gathering all research data
-parallel_researcher = ParallelAgent(
-    name="ParallelTripAgents",
-    sub_agents=[flight_agent, hotel_agent, sightseeing_agent],
-    description="Runs flight, hotel, and sightseeing agents concurrently to gather comprehensive trip options."
-)
-
-# Synthesis Agent crafting the final markdown
-planner_synthesis_agent = LlmAgent(
+synthesis_worker = LlmAgent(
     model=LiteLlm(model=MODEL),
-    name="PlannerAgent",
-    instruction=TRIP_PLANNER_INSTRUCTION,
-    description="Synthesizes all the parallel research into a well-formatted Markdown itinerary."
+    name="SynthesisAgent",
+    description="Builds the final Markdown itinerary from research data.",
+    instruction=TRIP_PLANNER_INSTRUCTION
 )
 
-# The full Research Pipeline as a single unit
-research_pipeline = SequentialAgent(
-    name="ResearchPipeline",
-    sub_agents=[parallel_researcher, planner_synthesis_agent],
-    description="Executes full research for flights, hotels, and sightseeing, then generates a complete itinerary. Use this for new trips or major changes."
-)
-
-# Simple Chat Agent for conversational turns
-chat_agent = LlmAgent(
+chat_worker = LlmAgent(
     model=LiteLlm(model=MODEL),
     name="ChatAgent",
-    instruction=CHAT_AGENT_INSTRUCTION,
-    description="Handles greetings, thank yous, and simple conversational questions about the existing plan. Use this for non-research tasks."
+    description="Handles simple conversation and greetings.",
+    instruction=CHAT_AGENT_INSTRUCTION
 )
 
-# --- Root Router Agent ---
+# --- The Master Root Agent ---
 
-# The IntentAgent acts as the dispatcher (Router)
+# MasterPlanner acts as a Router/Director. 
+# It delegates turns to specialists and expects control back.
 root_agent = LlmAgent(
     model=LiteLlm(model=MODEL),
-    name="IntentAgent",
-    instruction=INTENT_ROUTER_INSTRUCTION,
-    sub_agents=[chat_agent, research_pipeline],
-    description="Main entry point. Analyzes user intent and delegates to either ResearchPipeline for trip planning or ChatAgent for simple conversation."
+    name="MasterPlanner",
+    instruction=MASTER_PLANNER_INSTRUCTION,
+    sub_agents=[
+        flight_worker,
+        hotel_worker,
+        sightseeing_worker,
+        synthesis_worker,
+        chat_worker
+    ],
+    description="Main entry point. Coordinates specialists dynamically based on user needs."
 )

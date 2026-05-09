@@ -134,4 +134,4 @@ cython_debug/
 *.swo
 
 # ---------- automation scripts ----------
-deploy.sh
+deploy.shtrip_planner.db

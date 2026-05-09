@@ -3,3 +3,7 @@ litellm==1.82.0
 mcp==1.26.0
 fastapi
 uvicorn
+sqlalchemy[asyncio]
+aiosqlite
+asyncpg
+python-dotenv
